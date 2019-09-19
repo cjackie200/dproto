@@ -1,9 +1,9 @@
 package dproto_test
 
 import (
-	"dproto"
 	"fmt"
 
+	"github.com/czar31/dproto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
@@ -56,13 +56,13 @@ func ExampleWireMessage_Unmarshal() {
 		panic("Error Unmarshaling: " + err.Error())
 	}
 
-	if bVal, ok := m.DecodeBool(1); ok {
+	if bVal, ok := m.DecodeBool(1, -1); ok {
 		fmt.Println(bVal)
 	} else {
 		fmt.Println("No bool field 1")
 	}
 
-	if iVal, ok := m.DecodeInt64(2); ok {
+	if iVal, ok := m.DecodeInt64(2, -1); ok {
 		fmt.Println(iVal)
 	} else {
 		fmt.Println("No int64 field 2")
@@ -113,7 +113,7 @@ func ExampleWireMessage_Unmarshal_abstract() {
 
 	// Decode each field and print
 	for index, typ := range types {
-		val, err := m.DecodeAs(dproto.FieldNum(index+1), typ)
+		val, err := m.DecodeAs(dproto.FieldNum(index+1), -1, typ)
 		if err != nil {
 			fmt.Println(err)
 		} else {
