@@ -28,6 +28,12 @@ import (
 // FieldNum represents Protobuf's field numbers
 type FieldNum uint64
 
+// FieldNum represents Protobuf's field repeated numbers and index
+type FieldRepeatedNum struct {
+	Field FieldNum
+	Index int
+}
+
 // FieldValue represents deserialized value with it's associated field number
 type FieldValue struct {
 	Field FieldNum
@@ -108,12 +114,12 @@ func (fm *ProtoFieldMap) DecodeMessage(m *WireMessage) ([]FieldValue, error) {
 	values := make([]FieldValue, 0, m.GetFieldCount())
 	err := error(nil)
 
-	for _, f := range m.GetFieldNums() {
+	for _, rm := range m.GetFieldRepeatedNums() {
 		// Ignore fields that we are not aware/interested of/in - a feature
-		if typ, ok := fm.field2type[f]; ok {
+		if typ, ok := fm.field2type[rm.Field]; ok {
 			// Pass over decodings that don't succeed - report first error
-			if v, e := m.DecodeAs(f, typ); e == nil {
-				values = append(values, FieldValue{f, v})
+			if v, e := m.DecodeAs(rm.Field, rm.Index, typ); e == nil {
+				values = append(values, FieldValue{rm.Field, v})
 			} else {
 				// save first error
 				if err == nil {

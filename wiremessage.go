@@ -14,7 +14,6 @@ package dproto
 
 import (
 	"fmt"
-
 	"io"
 
 	"errors"
@@ -51,6 +50,11 @@ type WireMessage struct {
 	fixed32 map[FieldNum]WireFixed32
 	fixed64 map[FieldNum]WireFixed64
 	bytes   map[FieldNum][]byte
+
+	varintRepeated  map[FieldNum][]WireVarint
+	fixed32Repeated map[FieldNum][]WireFixed32
+	fixed64Repeated map[FieldNum][]WireFixed64
+	bytesRepeated   map[FieldNum][][]byte
 }
 
 // NewWireMessage creates a new Wiremessage object.
@@ -66,6 +70,11 @@ func (m *WireMessage) Reset() {
 	m.fixed32 = make(map[FieldNum]WireFixed32)
 	m.fixed64 = make(map[FieldNum]WireFixed64)
 	m.bytes = make(map[FieldNum][]byte)
+
+	m.varintRepeated = make(map[FieldNum][]WireVarint)
+	m.fixed32Repeated = make(map[FieldNum][]WireFixed32)
+	m.fixed64Repeated = make(map[FieldNum][]WireFixed64)
+	m.bytesRepeated = make(map[FieldNum][][]byte)
 }
 
 /*******************************************************
@@ -74,22 +83,90 @@ func (m *WireMessage) Reset() {
 
 // AddVarint adds a WireVarint wiretype to the wire message m
 func (m *WireMessage) AddVarint(field FieldNum, value WireVarint) {
-	m.varint[field] = value
+	if old, ok := m.varint[field]; ok {
+		m.AddVarintRepeated(field, old)
+		m.AddVarintRepeated(field, value)
+	} else {
+		m.varint[field] = value
+	}
 }
 
 // AddFixed32 adds a WireFixed32 wiretype to the wire message m
 func (m *WireMessage) AddFixed32(field FieldNum, value WireFixed32) {
-	m.fixed32[field] = value
+	if old, ok := m.fixed32[field]; ok {
+		m.AddFixed32Repeated(field, old)
+		m.AddFixed32Repeated(field, value)
+	} else {
+		m.fixed32[field] = value
+	}
 }
 
 // AddFixed64 adds a WireFixed64 wiretype to the wire message m
 func (m *WireMessage) AddFixed64(field FieldNum, value WireFixed64) {
-	m.fixed64[field] = value
+	if old, ok := m.fixed64[field]; ok {
+		m.AddFixed64Repeated(field, old)
+		m.AddFixed64Repeated(field, value)
+	} else {
+		m.fixed64[field] = value
+	}
 }
 
 // AddBytes adds a byte buffer wiretype to the wire message m
 func (m *WireMessage) AddBytes(field FieldNum, buf []byte) {
-	m.bytes[field] = buf
+	if old, ok := m.bytes[field]; ok {
+		m.AddBytesRepeated(field, old)
+		m.AddBytesRepeated(field, buf)
+	} else {
+		m.bytes[field] = buf
+	}
+}
+
+// AddVarintRepeated adds a WireVarint wiretype to the wire message m
+func (m *WireMessage) AddVarintRepeated(field FieldNum, value WireVarint) {
+	if values, ok := m.varintRepeated[field]; ok {
+		values = append(values, value)
+		m.varintRepeated[field] = values
+	} else {
+		values = make([]WireVarint, 0, 2)
+		values = append(values, value)
+		m.varintRepeated[field] = values
+	}
+}
+
+// AddFixed32Repeated adds a WireFixed32 wiretype to the wire message m
+func (m *WireMessage) AddFixed32Repeated(field FieldNum, value WireFixed32) {
+	if values, ok := m.fixed32Repeated[field]; ok {
+		values = append(values, value)
+		m.fixed32Repeated[field] = values
+	} else {
+		values = make([]WireFixed32, 0, 2)
+		values = append(values, value)
+		m.fixed32Repeated[field] = values
+	}
+}
+
+// AddFixed64Repeated adds a WireFixed64 wiretype to the wire message m
+func (m *WireMessage) AddFixed64Repeated(field FieldNum, value WireFixed64) {
+	if values, ok := m.fixed64Repeated[field]; ok {
+		values = append(values, value)
+		m.fixed64Repeated[field] = values
+	} else {
+		values = make([]WireFixed64, 0, 2)
+		values = append(values, value)
+		m.fixed64Repeated[field] = values
+	}
+}
+
+// AddBytesRepeated adds a byte buffer wiretype to the wire message m
+func (m *WireMessage) AddBytesRepeated(field FieldNum, buf []byte) {
+	if values, ok := m.bytesRepeated[field]; ok {
+		values = append(values, buf)
+		m.bytesRepeated[field] = values
+	} else {
+		values = make([][]byte, 0, 2)
+		values = append(values, buf)
+		m.bytesRepeated[field] = values
+	}
 }
 
 // Remove removes the wiretype field previously added
@@ -98,11 +175,26 @@ func (m *WireMessage) Remove(field FieldNum) {
 	delete(m.fixed32, field)
 	delete(m.fixed64, field)
 	delete(m.bytes, field)
+
+	delete(m.varintRepeated, field)
+	delete(m.fixed32Repeated, field)
+	delete(m.fixed64Repeated, field)
+	delete(m.bytesRepeated, field)
 }
 
 // GetFieldCount gets the number of fields in the WireMessage
 func (m *WireMessage) GetFieldCount() int {
-	return len(m.varint) + len(m.fixed32) + len(m.fixed64) + len(m.bytes)
+	maxFunc := func(x int, y int) int {
+		if x >= y {
+			return x
+		} else {
+			return y
+		}
+	}
+	return maxFunc(len(m.varint), len(m.varintRepeated)) +
+		maxFunc(len(m.fixed32), len(m.fixed32Repeated)) +
+		maxFunc(len(m.fixed64), len(m.fixed64Repeated)) +
+		maxFunc(len(m.bytes), len(m.bytesRepeated))
 }
 
 // GetFieldNums gets all field numbers contained in the WireMessage
@@ -123,49 +215,147 @@ func (m *WireMessage) GetFieldNums() []FieldNum {
 	return fields
 }
 
+// GetFieldNums gets all field numbers contained in the WireMessage
+func (m *WireMessage) GetFieldRepeatedNums() []FieldRepeatedNum {
+	fields := make([]FieldRepeatedNum, 0, m.GetFieldCount())
+
+	if len(m.varintRepeated) > 0 {
+		for k, v := range m.varintRepeated {
+			for idx, _ := range v {
+				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
+			}
+		}
+	} else {
+		for k := range m.varint {
+			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+		}
+	}
+
+	if len(m.fixed32Repeated) > 0 {
+		for k, v := range m.fixed32Repeated {
+			for idx, _ := range v {
+				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
+			}
+		}
+	} else {
+		for k := range m.fixed32 {
+			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+		}
+	}
+
+	if len(m.fixed64Repeated) > 0 {
+		for k, v := range m.fixed64Repeated {
+			for idx, _ := range v {
+				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
+			}
+		}
+	} else {
+		for k := range m.fixed64 {
+			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+		}
+	}
+
+	if len(m.bytesRepeated) > 0 {
+		for k, v := range m.bytesRepeated {
+			for idx, _ := range v {
+				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
+			}
+		}
+	} else {
+		for k := range m.bytes {
+			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+		}
+	}
+
+	return fields
+}
+
 // GetField fetches the raw wire field from m and returns it
 // as the proper wire type
-func (m *WireMessage) GetField(field FieldNum) (interface{}, bool) {
+func (m *WireMessage) GetField(field FieldNum, index int) (interface{}, bool) {
 
 	/* Check all data field types to find specified field */
 
-	if val, ok := m.varint[field]; ok {
-		return val, true
-	}
-	if val, ok := m.fixed32[field]; ok {
-		return val, true
-	}
-	if val, ok := m.fixed64[field]; ok {
-		return val, true
-	}
-	if val, ok := m.bytes[field]; ok {
-		return val, true
+	if index < 0 {
+		if val, ok := m.varint[field]; ok {
+			return val, true
+		}
+		if val, ok := m.fixed32[field]; ok {
+			return val, true
+		}
+		if val, ok := m.fixed64[field]; ok {
+			return val, true
+		}
+		if val, ok := m.bytes[field]; ok {
+			return val, true
+		}
+	} else {
+		if values, ok := m.varintRepeated[field]; ok {
+			return values[index], true
+		}
+		if values, ok := m.fixed32Repeated[field]; ok {
+			return values[index], true
+		}
+		if values, ok := m.fixed64Repeated[field]; ok {
+			return values[index], true
+		}
+		if values, ok := m.bytesRepeated[field]; ok {
+			return values[index], true
+		}
 	}
 	return nil, false
 }
 
 // GetVarint fetches a varint wire field from m
-func (m *WireMessage) GetVarint(field FieldNum) (WireVarint, bool) {
-	val, ok := m.varint[field]
-	return val, ok
+func (m *WireMessage) GetVarint(field FieldNum, index int) (WireVarint, bool) {
+	if index < 0 {
+		val, ok := m.varint[field]
+		return val, ok
+	} else {
+		if values, ok := m.varintRepeated[field]; ok {
+			return values[index], true
+		}
+	}
+	return 0, false
 }
 
 // GetFixed32 fetches a fixed32 wire field from m
-func (m *WireMessage) GetFixed32(field FieldNum) (WireFixed32, bool) {
-	val, ok := m.fixed32[field]
-	return val, ok
+func (m *WireMessage) GetFixed32(field FieldNum, index int) (WireFixed32, bool) {
+	if index < 0 {
+		val, ok := m.fixed32[field]
+		return val, ok
+	} else {
+		if values, ok := m.fixed32Repeated[field]; ok {
+			return values[index], true
+		}
+	}
+	return 0, false
 }
 
 // GetFixed64 fetches a fixed64 wire field from m
-func (m *WireMessage) GetFixed64(field FieldNum) (WireFixed64, bool) {
-	val, ok := m.fixed64[field]
-	return val, ok
+func (m *WireMessage) GetFixed64(field FieldNum, index int) (WireFixed64, bool) {
+	if index < 0 {
+		val, ok := m.fixed64[field]
+		return val, ok
+	} else {
+		if values, ok := m.fixed64Repeated[field]; ok {
+			return values[index], true
+		}
+	}
+	return 0, false
 }
 
 // GetBytes fetches a byte array wire field from m
-func (m *WireMessage) GetBytes(field FieldNum) ([]byte, bool) {
-	val, ok := m.bytes[field]
-	return val, ok
+func (m *WireMessage) GetBytes(field FieldNum, index int) ([]byte, bool) {
+	if index < 0 {
+		val, ok := m.bytes[field]
+		return val, ok
+	} else {
+		if values, ok := m.bytesRepeated[field]; ok {
+			return values[index], true
+		}
+	}
+	return nil, false
 }
 
 /*******************************************************
@@ -175,101 +365,101 @@ func (m *WireMessage) GetBytes(field FieldNum) ([]byte, bool) {
 /////////////////////////////// Decoding /////////////////////////////////////
 
 // DecodeInt32 fetches the wiretype field and decodes it as a Protobuf int32
-func (m *WireMessage) DecodeInt32(field FieldNum) (int32, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeInt32(field FieldNum, index int) (int32, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsInt32(), ok
 }
 
 // DecodeInt64 fetches the field from m and decodes it as a Protobuf int64
-func (m *WireMessage) DecodeInt64(field FieldNum) (int64, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeInt64(field FieldNum, index int) (int64, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsInt64(), ok
 }
 
 // DecodeUint32 fetches the field from m and decodes it as a Protobuf uint32
-func (m *WireMessage) DecodeUint32(field FieldNum) (uint32, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeUint32(field FieldNum, index int) (uint32, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsUint32(), ok
 }
 
 // DecodeUint64 fetches the field from m and decodes it as a Protobuf uint64
-func (m *WireMessage) DecodeUint64(field FieldNum) (uint64, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeUint64(field FieldNum, index int) (uint64, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsUint64(), ok
 }
 
 // DecodeSint32 fetches the field from m and decodes it as a Protobuf sint32
-func (m *WireMessage) DecodeSint32(field FieldNum) (int32, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeSint32(field FieldNum, index int) (int32, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsSint32(), ok
 }
 
 // DecodeSint64 fetches the field from m and decodes it as a Protobuf sint64
-func (m *WireMessage) DecodeSint64(field FieldNum) (int64, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeSint64(field FieldNum, index int) (int64, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsSint64(), ok
 }
 
 // DecodeBool fetches the field from m and decodes it as a Protobuf bool
-func (m *WireMessage) DecodeBool(field FieldNum) (bool, bool) {
-	val, ok := m.GetVarint(field)
+func (m *WireMessage) DecodeBool(field FieldNum, index int) (bool, bool) {
+	val, ok := m.GetVarint(field, index)
 	return val.AsBool(), ok
 }
 
 // DecodeFixed32 fetches the field from m and decodes it as a Protobuf fixed32
-func (m *WireMessage) DecodeFixed32(field FieldNum) (uint32, bool) {
-	val, ok := m.GetFixed32(field)
+func (m *WireMessage) DecodeFixed32(field FieldNum, index int) (uint32, bool) {
+	val, ok := m.GetFixed32(field, index)
 	return val.AsFixed32(), ok
 }
 
 // DecodeSfixed32 fetches the field from m and decodes it as a Protobuf sfixed32
-func (m *WireMessage) DecodeSfixed32(field FieldNum) (int32, bool) {
-	val, ok := m.GetFixed32(field)
+func (m *WireMessage) DecodeSfixed32(field FieldNum, index int) (int32, bool) {
+	val, ok := m.GetFixed32(field, index)
 	return val.AsSfixed32(), ok
 }
 
 // DecodeFloat fetches the field from m and decodes it as a Protobuf float
-func (m *WireMessage) DecodeFloat(field FieldNum) (float32, bool) {
-	val, ok := m.GetFixed32(field)
+func (m *WireMessage) DecodeFloat(field FieldNum, index int) (float32, bool) {
+	val, ok := m.GetFixed32(field, index)
 	return val.AsFloat(), ok
 }
 
 // DecodeFixed64 fetches the field from m and decodes it as a Protobuf fixed64
-func (m *WireMessage) DecodeFixed64(field FieldNum) (uint64, bool) {
-	val, ok := m.GetFixed64(field)
+func (m *WireMessage) DecodeFixed64(field FieldNum, index int) (uint64, bool) {
+	val, ok := m.GetFixed64(field, index)
 	return val.AsFixed64(), ok
 }
 
 // DecodeSfixed64 fetches the field from m and decodes it as a Protobuf sfixed64
-func (m *WireMessage) DecodeSfixed64(field FieldNum) (int64, bool) {
-	val, ok := m.GetFixed64(field)
+func (m *WireMessage) DecodeSfixed64(field FieldNum, index int) (int64, bool) {
+	val, ok := m.GetFixed64(field, index)
 	return val.AsSfixed64(), ok
 }
 
 // DecodeDouble fetches the field and decodes it as a Protobuf double
-func (m *WireMessage) DecodeDouble(field FieldNum) (float64, bool) {
-	val, ok := m.GetFixed64(field)
+func (m *WireMessage) DecodeDouble(field FieldNum, index int) (float64, bool) {
+	val, ok := m.GetFixed64(field, index)
 	return val.AsDouble(), ok
 }
 
 // DecodeString fetches the field from m and decodes it as a Protobuf string
-func (m *WireMessage) DecodeString(field FieldNum) (string, bool) {
+func (m *WireMessage) DecodeString(field FieldNum, index int) (string, bool) {
 	// TODO: Check correctness for unicode/7bit ASCII text
-	if val, ok := m.GetBytes(field); ok {
+	if val, ok := m.GetBytes(field, index); ok {
 		return string(val), true
 	}
 	return "", false
 }
 
 // DecodeBytes fetches the field from m and decodes it as a Protobuf bytes type
-func (m *WireMessage) DecodeBytes(field FieldNum) ([]byte, bool) {
-	val, ok := m.GetBytes(field)
+func (m *WireMessage) DecodeBytes(field FieldNum, index int) ([]byte, bool) {
+	val, ok := m.GetBytes(field, index)
 	return val, ok
 }
 
 // DecodeMessage fetches the field from m and decodes it as an embedded message
-func (m *WireMessage) DecodeMessage(field FieldNum) (*WireMessage, error) {
-	if bytes, ok := m.GetBytes(field); ok {
+func (m *WireMessage) DecodeMessage(field FieldNum, index int) (*WireMessage, error) {
+	if bytes, ok := m.GetBytes(field, index); ok {
 		emmsg := NewWireMessage()
 		return emmsg, emmsg.Unmarshal(bytes)
 	}
@@ -278,44 +468,44 @@ func (m *WireMessage) DecodeMessage(field FieldNum) (*WireMessage, error) {
 
 // DecodeAs fetches the field from m and decodes it as the specified
 // Protobuf type
-func (m *WireMessage) DecodeAs(field FieldNum, pbtype descriptor.FieldDescriptorProto_Type) (val interface{}, err error) {
+func (m *WireMessage) DecodeAs(field FieldNum, index int, pbtype descriptor.FieldDescriptorProto_Type) (val interface{}, err error) {
 	val = 0
 	err = nil
 	ok := true
 
 	switch pbtype {
 	case descriptor.FieldDescriptorProto_TYPE_INT32:
-		val, ok = m.DecodeInt32(field)
+		val, ok = m.DecodeInt32(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_INT64:
-		val, ok = m.DecodeInt64(field)
+		val, ok = m.DecodeInt64(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_UINT32:
-		val, ok = m.DecodeUint32(field)
+		val, ok = m.DecodeUint32(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_UINT64:
-		val, ok = m.DecodeUint64(field)
+		val, ok = m.DecodeUint64(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_SINT32:
-		val, ok = m.DecodeSint32(field)
+		val, ok = m.DecodeSint32(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_SINT64:
-		val, ok = m.DecodeSint64(field)
+		val, ok = m.DecodeSint64(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		val, ok = m.DecodeBool(field)
+		val, ok = m.DecodeBool(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_FIXED32:
-		val, ok = m.DecodeFixed32(field)
+		val, ok = m.DecodeFixed32(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_SFIXED32:
-		val, ok = m.DecodeSfixed32(field)
+		val, ok = m.DecodeSfixed32(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		val, ok = m.DecodeFloat(field)
+		val, ok = m.DecodeFloat(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_FIXED64:
-		val, ok = m.DecodeFixed64(field)
+		val, ok = m.DecodeFixed64(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_SFIXED64:
-		val, ok = m.DecodeSfixed64(field)
+		val, ok = m.DecodeSfixed64(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		val, ok = m.DecodeDouble(field)
+		val, ok = m.DecodeDouble(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		val, ok = m.DecodeString(field)
+		val, ok = m.DecodeString(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		val, ok = m.DecodeBytes(field)
+		val, ok = m.DecodeBytes(field, index)
 	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
-		val, err = m.DecodeMessage(field)
+		val, err = m.DecodeMessage(field, index)
 	default:
 		val, err = 0, ErrInvalidProtoBufType
 	}
@@ -620,22 +810,22 @@ out:
 	return nil
 }
 
-type fieldNumArray []FieldNum
+type fieldNumArray []FieldRepeatedNum
 
 func (fs fieldNumArray) Len() int           { return len(fs) }
 func (fs fieldNumArray) Swap(i, j int)      { fs[i], fs[j] = fs[j], fs[i] }
-func (fs fieldNumArray) Less(i, j int) bool { return fs[i] < fs[j] }
+func (fs fieldNumArray) Less(i, j int) bool { return fs[i].Field < fs[j].Field }
 
 // Marshal generates the byte stream for a given WireMessage
 func (m *WireMessage) Marshal() ([]byte, error) {
-	fields := fieldNumArray(m.GetFieldNums())
+	fields := fieldNumArray(m.GetFieldRepeatedNums())
 	sort.Sort(fields) // protobuf encoding should be in increaing key order
 	pbuf := proto.NewBuffer(make([]byte, 0, 1))
 
 	// Add all fields in the previously created sorted order
-	for _, fnum := range []FieldNum(fields) {
+	for _, rm := range []FieldRepeatedNum(fields) {
 
-		field, ok := m.GetField(fnum)
+		field, ok := m.GetField(rm.Field, rm.Index)
 		if !ok {
 			return nil, ErrMessageFieldMissing
 		}
@@ -646,7 +836,7 @@ func (m *WireMessage) Marshal() ([]byte, error) {
 			f := field.(WireVarint)
 			// Write tag header
 			var tag WireVarint
-			tag.FromTag(fnum, proto.WireVarint)
+			tag.FromTag(rm.Field, proto.WireVarint)
 			err := pbuf.EncodeVarint(uint64(tag))
 			if err != nil {
 				return nil, err
@@ -661,7 +851,7 @@ func (m *WireMessage) Marshal() ([]byte, error) {
 			f := field.(WireFixed32)
 			// Write tag header
 			var tag WireVarint
-			tag.FromTag(fnum, proto.WireFixed32)
+			tag.FromTag(rm.Field, proto.WireFixed32)
 			err := pbuf.EncodeVarint(uint64(tag))
 			if err != nil {
 				return nil, err
@@ -676,7 +866,7 @@ func (m *WireMessage) Marshal() ([]byte, error) {
 			f := field.(WireFixed64)
 			// Write tag header
 			var tag WireVarint
-			tag.FromTag(fnum, proto.WireFixed64)
+			tag.FromTag(rm.Field, proto.WireFixed64)
 			err := pbuf.EncodeVarint(uint64(tag))
 			if err != nil {
 				return nil, err
@@ -691,7 +881,7 @@ func (m *WireMessage) Marshal() ([]byte, error) {
 			f := field.([]byte)
 			// Write tag header
 			var tag WireVarint
-			tag.FromTag(fnum, proto.WireBytes)
+			tag.FromTag(rm.Field, proto.WireBytes)
 			err := pbuf.EncodeVarint(uint64(tag))
 			if err != nil {
 				return nil, err
