@@ -1,10 +1,10 @@
 package dproto_test
 
 import (
+	"dproto"
 	"fmt"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/linux4life798/dproto"
 )
 
 func ExampleNewWireMessage() {
