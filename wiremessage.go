@@ -46,15 +46,10 @@ var ErrInvalidProtoBufType = errors.New("Invalid protobuf type")
 // date. Sending fields in numerical order is recommended on the Protobuf
 // website.
 type WireMessage struct {
-	varint  map[FieldNum]WireVarint
-	fixed32 map[FieldNum]WireFixed32
-	fixed64 map[FieldNum]WireFixed64
-	bytes   map[FieldNum][]byte
-
-	varintRepeated  map[FieldNum][]WireVarint
-	fixed32Repeated map[FieldNum][]WireFixed32
-	fixed64Repeated map[FieldNum][]WireFixed64
-	bytesRepeated   map[FieldNum][][]byte
+	varint  map[FieldNum][]WireVarint
+	fixed32 map[FieldNum][]WireFixed32
+	fixed64 map[FieldNum][]WireFixed64
+	bytes   map[FieldNum][][]byte
 }
 
 // NewWireMessage creates a new Wiremessage object.
@@ -66,15 +61,10 @@ func NewWireMessage() *WireMessage {
 
 // Reset clears the WireMessage m
 func (m *WireMessage) Reset() {
-	m.varint = make(map[FieldNum]WireVarint)
-	m.fixed32 = make(map[FieldNum]WireFixed32)
-	m.fixed64 = make(map[FieldNum]WireFixed64)
-	m.bytes = make(map[FieldNum][]byte)
-
-	m.varintRepeated = make(map[FieldNum][]WireVarint)
-	m.fixed32Repeated = make(map[FieldNum][]WireFixed32)
-	m.fixed64Repeated = make(map[FieldNum][]WireFixed64)
-	m.bytesRepeated = make(map[FieldNum][][]byte)
+	m.varint = make(map[FieldNum][]WireVarint)
+	m.fixed32 = make(map[FieldNum][]WireFixed32)
+	m.fixed64 = make(map[FieldNum][]WireFixed64)
+	m.bytes = make(map[FieldNum][][]byte)
 }
 
 /*******************************************************
@@ -83,89 +73,49 @@ func (m *WireMessage) Reset() {
 
 // AddVarint adds a WireVarint wiretype to the wire message m
 func (m *WireMessage) AddVarint(field FieldNum, value WireVarint) {
-	if old, ok := m.varint[field]; ok {
-		m.AddVarintRepeated(field, old)
-		m.AddVarintRepeated(field, value)
+	if values, ok := m.varint[field]; ok {
+		values = append(values, value)
+		m.varint[field] = values
 	} else {
-		m.varint[field] = value
+		values = make([]WireVarint, 0, 1)
+		values = append(values, value)
+		m.varint[field] = values
 	}
 }
 
 // AddFixed32 adds a WireFixed32 wiretype to the wire message m
 func (m *WireMessage) AddFixed32(field FieldNum, value WireFixed32) {
-	if old, ok := m.fixed32[field]; ok {
-		m.AddFixed32Repeated(field, old)
-		m.AddFixed32Repeated(field, value)
+	if values, ok := m.fixed32[field]; ok {
+		values = append(values, value)
+		m.fixed32[field] = values
 	} else {
-		m.fixed32[field] = value
+		values = make([]WireFixed32, 0, 1)
+		values = append(values, value)
+		m.fixed32[field] = values
 	}
 }
 
 // AddFixed64 adds a WireFixed64 wiretype to the wire message m
 func (m *WireMessage) AddFixed64(field FieldNum, value WireFixed64) {
-	if old, ok := m.fixed64[field]; ok {
-		m.AddFixed64Repeated(field, old)
-		m.AddFixed64Repeated(field, value)
+	if values, ok := m.fixed64[field]; ok {
+		values = append(values, value)
+		m.fixed64[field] = values
 	} else {
-		m.fixed64[field] = value
+		values = make([]WireFixed64, 0, 1)
+		values = append(values, value)
+		m.fixed64[field] = values
 	}
 }
 
 // AddBytes adds a byte buffer wiretype to the wire message m
 func (m *WireMessage) AddBytes(field FieldNum, buf []byte) {
-	if old, ok := m.bytes[field]; ok {
-		m.AddBytesRepeated(field, old)
-		m.AddBytesRepeated(field, buf)
-	} else {
-		m.bytes[field] = buf
-	}
-}
-
-// AddVarintRepeated adds a WireVarint wiretype to the wire message m
-func (m *WireMessage) AddVarintRepeated(field FieldNum, value WireVarint) {
-	if values, ok := m.varintRepeated[field]; ok {
-		values = append(values, value)
-		m.varintRepeated[field] = values
-	} else {
-		values = make([]WireVarint, 0, 2)
-		values = append(values, value)
-		m.varintRepeated[field] = values
-	}
-}
-
-// AddFixed32Repeated adds a WireFixed32 wiretype to the wire message m
-func (m *WireMessage) AddFixed32Repeated(field FieldNum, value WireFixed32) {
-	if values, ok := m.fixed32Repeated[field]; ok {
-		values = append(values, value)
-		m.fixed32Repeated[field] = values
-	} else {
-		values = make([]WireFixed32, 0, 2)
-		values = append(values, value)
-		m.fixed32Repeated[field] = values
-	}
-}
-
-// AddFixed64Repeated adds a WireFixed64 wiretype to the wire message m
-func (m *WireMessage) AddFixed64Repeated(field FieldNum, value WireFixed64) {
-	if values, ok := m.fixed64Repeated[field]; ok {
-		values = append(values, value)
-		m.fixed64Repeated[field] = values
-	} else {
-		values = make([]WireFixed64, 0, 2)
-		values = append(values, value)
-		m.fixed64Repeated[field] = values
-	}
-}
-
-// AddBytesRepeated adds a byte buffer wiretype to the wire message m
-func (m *WireMessage) AddBytesRepeated(field FieldNum, buf []byte) {
-	if values, ok := m.bytesRepeated[field]; ok {
+	if values, ok := m.bytes[field]; ok {
 		values = append(values, buf)
-		m.bytesRepeated[field] = values
+		m.bytes[field] = values
 	} else {
 		values = make([][]byte, 0, 2)
 		values = append(values, buf)
-		m.bytesRepeated[field] = values
+		m.bytes[field] = values
 	}
 }
 
@@ -175,99 +125,50 @@ func (m *WireMessage) Remove(field FieldNum) {
 	delete(m.fixed32, field)
 	delete(m.fixed64, field)
 	delete(m.bytes, field)
-
-	delete(m.varintRepeated, field)
-	delete(m.fixed32Repeated, field)
-	delete(m.fixed64Repeated, field)
-	delete(m.bytesRepeated, field)
 }
 
 // GetFieldCount gets the number of fields in the WireMessage
 func (m *WireMessage) GetFieldCount() int {
-	maxFunc := func(x int, y int) int {
-		if x >= y {
-			return x
-		} else {
-			return y
-		}
+	var count int
+	for _, values := range m.varint {
+		count += len(values)
 	}
-	return maxFunc(len(m.varint), len(m.varintRepeated)) +
-		maxFunc(len(m.fixed32), len(m.fixed32Repeated)) +
-		maxFunc(len(m.fixed64), len(m.fixed64Repeated)) +
-		maxFunc(len(m.bytes), len(m.bytesRepeated))
+	for _, values := range m.fixed32 {
+		count += len(values)
+	}
+	for _, values := range m.fixed64 {
+		count += len(values)
+	}
+	for _, values := range m.bytes {
+		count += len(values)
+	}
+	return count
 }
 
-// GetFieldNums gets all field numbers contained in the WireMessage
-func (m *WireMessage) GetFieldNums() []FieldNum {
-	fields := make([]FieldNum, 0, m.GetFieldCount())
-	for k := range m.varint {
-		fields = append(fields, k)
-	}
-	for k := range m.fixed32 {
-		fields = append(fields, k)
-	}
-	for k := range m.fixed64 {
-		fields = append(fields, k)
-	}
-	for k := range m.bytes {
-		fields = append(fields, k)
-	}
-	return fields
-}
-
-// GetFieldNums gets all field numbers contained in the WireMessage
-func (m *WireMessage) GetFieldRepeatedNums() []FieldRepeatedNum {
-	fields := make([]FieldRepeatedNum, 0, m.GetFieldCount())
-
-	if len(m.varintRepeated) > 0 {
-		for k, v := range m.varintRepeated {
-			for idx, _ := range v {
-				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
-			}
-		}
-	} else {
-		for k := range m.varint {
-			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+// GetFieldNumInfos gets all field numbers contained in the WireMessage
+func (m *WireMessage) GetFieldNumInfos() []FieldNumInfo {
+	infos := make([]FieldNumInfo, 0, m.GetFieldCount())
+	for k, v := range m.varint {
+		for idx, _ := range v {
+			infos = append(infos, FieldNumInfo{Field: k, Index: idx})
 		}
 	}
-
-	if len(m.fixed32Repeated) > 0 {
-		for k, v := range m.fixed32Repeated {
-			for idx, _ := range v {
-				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
-			}
-		}
-	} else {
-		for k := range m.fixed32 {
-			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+	for k, v := range m.fixed32 {
+		for idx, _ := range v {
+			infos = append(infos, FieldNumInfo{Field: k, Index: idx})
 		}
 	}
-
-	if len(m.fixed64Repeated) > 0 {
-		for k, v := range m.fixed64Repeated {
-			for idx, _ := range v {
-				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
-			}
-		}
-	} else {
-		for k := range m.fixed64 {
-			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+	for k, v := range m.fixed64 {
+		for idx, _ := range v {
+			infos = append(infos, FieldNumInfo{Field: k, Index: idx})
 		}
 	}
-
-	if len(m.bytesRepeated) > 0 {
-		for k, v := range m.bytesRepeated {
-			for idx, _ := range v {
-				fields = append(fields, FieldRepeatedNum{Field: k, Index: idx})
-			}
-		}
-	} else {
-		for k := range m.bytes {
-			fields = append(fields, FieldRepeatedNum{Field: k, Index: -1})
+	for k, v := range m.bytes {
+		for idx, _ := range v {
+			infos = append(infos, FieldNumInfo{Field: k, Index: idx})
 		}
 	}
-
-	return fields
+	return infos
 }
 
 // GetField fetches the raw wire field from m and returns it
@@ -276,84 +177,49 @@ func (m *WireMessage) GetField(field FieldNum, index int) (interface{}, bool) {
 
 	/* Check all data field types to find specified field */
 
-	if index < 0 {
-		if val, ok := m.varint[field]; ok {
-			return val, true
-		}
-		if val, ok := m.fixed32[field]; ok {
-			return val, true
-		}
-		if val, ok := m.fixed64[field]; ok {
-			return val, true
-		}
-		if val, ok := m.bytes[field]; ok {
-			return val, true
-		}
-	} else {
-		if values, ok := m.varintRepeated[field]; ok {
-			return values[index], true
-		}
-		if values, ok := m.fixed32Repeated[field]; ok {
-			return values[index], true
-		}
-		if values, ok := m.fixed64Repeated[field]; ok {
-			return values[index], true
-		}
-		if values, ok := m.bytesRepeated[field]; ok {
-			return values[index], true
-		}
+	if values, ok := m.varint[field]; ok {
+		return values[index], true
+	}
+	if values, ok := m.fixed32[field]; ok {
+		return values[index], true
+	}
+	if values, ok := m.fixed64[field]; ok {
+		return values[index], true
+	}
+	if values, ok := m.bytes[field]; ok {
+		return values[index], true
 	}
 	return nil, false
 }
 
 // GetVarint fetches a varint wire field from m
 func (m *WireMessage) GetVarint(field FieldNum, index int) (WireVarint, bool) {
-	if index < 0 {
-		val, ok := m.varint[field]
-		return val, ok
-	} else {
-		if values, ok := m.varintRepeated[field]; ok {
-			return values[index], true
-		}
+	if values, ok := m.varint[field]; ok {
+		return values[index], true
 	}
 	return 0, false
 }
 
 // GetFixed32 fetches a fixed32 wire field from m
 func (m *WireMessage) GetFixed32(field FieldNum, index int) (WireFixed32, bool) {
-	if index < 0 {
-		val, ok := m.fixed32[field]
-		return val, ok
-	} else {
-		if values, ok := m.fixed32Repeated[field]; ok {
-			return values[index], true
-		}
+	if values, ok := m.fixed32[field]; ok {
+		return values[index], true
 	}
 	return 0, false
 }
 
 // GetFixed64 fetches a fixed64 wire field from m
 func (m *WireMessage) GetFixed64(field FieldNum, index int) (WireFixed64, bool) {
-	if index < 0 {
-		val, ok := m.fixed64[field]
-		return val, ok
-	} else {
-		if values, ok := m.fixed64Repeated[field]; ok {
-			return values[index], true
-		}
+	if values, ok := m.fixed64[field]; ok {
+		return values[index], true
 	}
 	return 0, false
 }
 
 // GetBytes fetches a byte array wire field from m
 func (m *WireMessage) GetBytes(field FieldNum, index int) ([]byte, bool) {
-	if index < 0 {
-		val, ok := m.bytes[field]
-		return val, ok
-	} else {
-		if values, ok := m.bytesRepeated[field]; ok {
-			return values[index], true
-		}
+	if values, ok := m.bytes[field]; ok {
+		return values[index], true
 	}
 	return nil, false
 }
@@ -810,7 +676,7 @@ out:
 	return nil
 }
 
-type fieldNumArray []FieldRepeatedNum
+type fieldNumArray []FieldNumInfo
 
 func (fs fieldNumArray) Len() int           { return len(fs) }
 func (fs fieldNumArray) Swap(i, j int)      { fs[i], fs[j] = fs[j], fs[i] }
@@ -818,12 +684,12 @@ func (fs fieldNumArray) Less(i, j int) bool { return fs[i].Field < fs[j].Field }
 
 // Marshal generates the byte stream for a given WireMessage
 func (m *WireMessage) Marshal() ([]byte, error) {
-	fields := fieldNumArray(m.GetFieldRepeatedNums())
+	fields := fieldNumArray(m.GetFieldNumInfos())
 	sort.Sort(fields) // protobuf encoding should be in increaing key order
 	pbuf := proto.NewBuffer(make([]byte, 0, 1))
 
 	// Add all fields in the previously created sorted order
-	for _, rm := range []FieldRepeatedNum(fields) {
+	for _, rm := range []FieldNumInfo(fields) {
 
 		field, ok := m.GetField(rm.Field, rm.Index)
 		if !ok {

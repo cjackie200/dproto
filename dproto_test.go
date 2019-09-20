@@ -50,7 +50,7 @@ const protobufBinary = "testprotobuf.bin"
 
 func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 	// Print out decoded values
-	myint32, ok := m.DecodeInt32(1, -1)
+	myint32, ok := m.DecodeInt32(1, 0)
 	if !ok {
 		t.Error("Failed to find myint32")
 	}
@@ -59,7 +59,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myint32 did not match expected value")
 	}
 
-	myint64, ok := m.DecodeInt64(2, -1)
+	myint64, ok := m.DecodeInt64(2, 0)
 	if !ok {
 		t.Error("Failed to find myint64")
 	}
@@ -68,7 +68,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myint64 did not match expected value")
 	}
 
-	myuint32, ok := m.DecodeUint32(3, -1)
+	myuint32, ok := m.DecodeUint32(3, 0)
 	if !ok {
 		t.Error("Failed to find myuint32")
 	}
@@ -77,7 +77,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myuint32 did not match expected value")
 	}
 
-	myuint64, ok := m.DecodeUint64(4, -1)
+	myuint64, ok := m.DecodeUint64(4, 0)
 	if !ok {
 		t.Error("Failed to find myuint64")
 	}
@@ -86,7 +86,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myuint64 did not match expected value")
 	}
 
-	mysint32, ok := m.DecodeSint32(5, -1)
+	mysint32, ok := m.DecodeSint32(5, 0)
 	if !ok {
 		t.Error("Failed to find mysint32")
 	}
@@ -95,7 +95,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("mysint32 did not match expected value")
 	}
 
-	mysint64, ok := m.DecodeSint64(6, -1)
+	mysint64, ok := m.DecodeSint64(6, 0)
 	if !ok {
 		t.Error("Failed to find mysint64")
 	}
@@ -104,7 +104,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("mysint64 did not match expected value")
 	}
 
-	mybool, ok := m.DecodeBool(7, -1)
+	mybool, ok := m.DecodeBool(7, 0)
 	if !ok {
 		t.Error("Failed to find mybool")
 	}
@@ -119,7 +119,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 	// }
 	// t.Logf("myenum = %c\n", myenum)
 
-	myfixed64, ok := m.DecodeFixed64(9, -1)
+	myfixed64, ok := m.DecodeFixed64(9, 0)
 	if !ok {
 		t.Error("Failed to find myfixed64")
 	}
@@ -128,7 +128,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myfixed64 did not match expected value")
 	}
 
-	mysfixed64, ok := m.DecodeSfixed64(10, -1)
+	mysfixed64, ok := m.DecodeSfixed64(10, 0)
 	if !ok {
 		t.Error("Failed to find mysfixed64")
 	}
@@ -137,7 +137,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("mysfixed64 did not match expected value")
 	}
 
-	mydouble, ok := m.DecodeDouble(11, -1)
+	mydouble, ok := m.DecodeDouble(11, 0)
 	if !ok {
 		t.Error("Failed to find mydouble")
 	}
@@ -146,7 +146,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("mydouble did not match expected value")
 	}
 
-	myfixed32, ok := m.DecodeFixed32(12, -1)
+	myfixed32, ok := m.DecodeFixed32(12, 0)
 	if !ok {
 		t.Error("Failed to find myfixed32")
 	}
@@ -155,7 +155,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("myfixed32 did not match expected value")
 	}
 
-	mysfixed32, ok := m.DecodeSfixed32(13, -1)
+	mysfixed32, ok := m.DecodeSfixed32(13, 0)
 	if !ok {
 		t.Error("Failed to find mysfixed32")
 	}
@@ -164,7 +164,7 @@ func testAgainstTestMessage(t *testing.T, m *WireMessage) {
 		t.Error("mysfixed32 did not match expected value")
 	}
 
-	myfloat, ok := m.DecodeFloat(14, -1)
+	myfloat, ok := m.DecodeFloat(14, 0)
 	if !ok {
 		t.Error("Failed to find myfloat")
 	}
