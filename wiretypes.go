@@ -253,4 +253,5 @@ var protoType2WireType = map[descriptor.FieldDescriptorProto_Type]WireType{
 	descriptor.FieldDescriptorProto_TYPE_SFIXED64: proto.WireFixed64,
 	descriptor.FieldDescriptorProto_TYPE_SINT32:   proto.WireVarint,
 	descriptor.FieldDescriptorProto_TYPE_SINT64:   proto.WireVarint,
+	descriptor.FieldDescriptorProto_TYPE_BYTES:    proto.WireBytes,
 }

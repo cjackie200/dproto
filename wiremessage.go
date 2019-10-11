@@ -113,7 +113,7 @@ func (m *WireMessage) AddBytes(field FieldNum, buf []byte) {
 		values = append(values, buf)
 		m.bytes[field] = values
 	} else {
-		values = make([][]byte, 0, 2)
+		values = make([][]byte, 0, 1)
 		values = append(values, buf)
 		m.bytes[field] = values
 	}
