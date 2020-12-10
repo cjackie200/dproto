@@ -1,4 +1,4 @@
-module github.com/czar31/dproto
+module github.com/cjackie200/dproto
 
 go 1.13
 

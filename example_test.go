@@ -3,7 +3,7 @@ package dproto_test
 import (
 	"fmt"
 
-	"github.com/czar31/dproto"
+	"github.com/cjackie200/dproto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
